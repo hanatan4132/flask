@@ -3,7 +3,7 @@ import ccxt
 import time
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
-
+import os 
 app = Flask(__name__)
 
 # 全局緩存變量
@@ -23,8 +23,24 @@ def fetch_exchange_rates(exchange_id):
         exchange_class = getattr(ccxt, exchange_id)
         # 設定為合約模式 (Swap/Future)
         options = {}
+        if __name__ == '__main__':
         if exchange_id == 'binance':
-            options = {'defaultType': 'future'}
+                # 嘗試讀取環境變數中的 API Key (如果有設定的話)
+                api_key = os.environ.get('BINANCE_API_KEY')
+                secret = os.environ.get('BINANCE_SECRET')
+                
+                config = {
+                    **common_config, 
+                    'options': {'defaultType': 'future'}
+                }
+                
+                # 如果有 Key，就加入設定
+                if api_key and secret:
+                    config['apiKey'] = api_key
+                    config['secret'] = secret
+                    
+                exchange = exchange_class(config)
+        app.run(debug=True)
         elif exchange_id == 'bybit':
             options = {'defaultType': 'swap'} # Bybit linear swap
         elif exchange_id == 'bitget':
