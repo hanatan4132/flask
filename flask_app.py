@@ -2,14 +2,14 @@ from flask import Flask, render_template, jsonify
 import ccxt
 import time
 import os
-from datetime import datetime
+from datetime import datetime, timedelta # <--- 1. 新增 timedelta
 from concurrent.futures import ThreadPoolExecutor
 
 app = Flask(__name__)
 
 # --- 全局配置 ---
 CACHE_DURATION = 180
-EXCHANGES = ['binance', 'bybit', 'bitget']  # 定義交易所列表
+EXCHANGES = ['binance', 'bybit', 'bitget']
 
 # 全局緩存
 cache_data = {
@@ -18,10 +18,16 @@ cache_data = {
 }
 
 def format_time(timestamp):
-    """將毫秒時間戳轉換為 H:M:S"""
+    """將毫秒時間戳轉換為 UTC+8 的 H:M:S"""
     if timestamp:
-        dt_object = datetime.fromtimestamp(timestamp / 1000)
-        return dt_object.strftime('%H:%M:%S') 
+        try:
+            # 1. 先轉成標準 UTC 時間
+            dt_utc = datetime.utcfromtimestamp(float(timestamp) / 1000)
+            # 2. 加上 8 小時 (台灣時間)
+            dt_tw = dt_utc + timedelta(hours=8)
+            return dt_tw.strftime('%H:%M:%S')
+        except:
+            return '-'
     return '-'
 
 def fetch_exchange_rates(exchange_id):
@@ -30,7 +36,6 @@ def fetch_exchange_rates(exchange_id):
     exchange = None
     
     try:
-        # 定義通用設定
         common_config = {
             'enableRateLimit': True,
             'timeout': 10000,
@@ -39,7 +44,7 @@ def fetch_exchange_rates(exchange_id):
         exchange_class = getattr(ccxt, exchange_id)
         config = {**common_config}
         
-        # 針對交易所的特殊設定
+        # 交易所特定設定
         if exchange_id == 'binance':
             api_key = os.environ.get('BINANCE_API_KEY')
             secret = os.environ.get('BINANCE_SECRET')
@@ -58,41 +63,52 @@ def fetch_exchange_rates(exchange_id):
             exchange.load_markets()
             rates = {}
             
-            # --- 獲取數據邏輯 ---
-            try:
-                if exchange.has['fetchFundingRates']:
-                    # 這是最標準的方法，回傳所有幣種的資費結構
-                    rates = exchange.fetch_funding_rates()
-                else:
-                    raise Exception("Method not supported")
-            except Exception:
-                # 備案: 從 Tickers 獲取 (Bitget 常見情況)
-                # Tickers 通常也會包含 fundingRate 相關資訊
-                tickers = exchange.fetch_tickers()
-                for symbol, ticker in tickers.items():
-                    if 'fundingRate' in ticker and ticker['fundingRate'] is not None:
-                         # 嘗試從 ticker 結構中找時間，找不到就設為 None
-                         rates[symbol] = {
-                             'fundingRate': ticker['fundingRate'], 
-                             'fundingTimestamp': ticker.get('nextFundingTime') or ticker.get('fundingTimestamp')
-                         }
+            # --- 針對 Bitget 的特殊處理 (解決時間顯示問題) ---
+            if exchange_id == 'bitget':
+                try:
+                    # Bitget 使用 fetch_tickers 比較容易拿到原始的 nextUpdate
+                    tickers = exchange.fetch_tickers()
+                    for symbol, ticker in tickers.items():
+                        if 'fundingRate' in ticker:
+                            # 嘗試從原始數據 info 中獲取 nextUpdate
+                            # 根據你的測試，欄位是 'nextUpdate'
+                            next_time = ticker.get('info', {}).get('nextUpdate')
+                            
+                            rates[symbol] = {
+                                'fundingRate': ticker['fundingRate'],
+                                'fundingTimestamp': next_time # 直接用原始數據
+                            }
+                except Exception as e:
+                    print(f"Bitget fetch error: {e}")
 
-            # --- 處理數據與時間戳提取 ---
+            # --- 其他交易所 (Binance / Bybit) 使用標準方法 ---
+            else:
+                try:
+                    if exchange.has['fetchFundingRates']:
+                        rates = exchange.fetch_funding_rates()
+                    else:
+                        raise Exception("Method not supported")
+                except Exception:
+                    # 備案
+                    tickers = exchange.fetch_tickers()
+                    for symbol, ticker in tickers.items():
+                        if 'fundingRate' in ticker:
+                             rates[symbol] = {
+                                 'fundingRate': ticker['fundingRate'], 
+                                 'fundingTimestamp': ticker.get('nextFundingTime') or ticker.get('fundingTimestamp')
+                             }
+
+            # --- 統一整理數據 ---
             for symbol, info in rates.items():
                 is_usdt = '/USDT' in symbol or ':USDT' in symbol
                 
                 if is_usdt:
                     rate = info.get('fundingRate')
                     
-                    # *** 核心修正：多重欄位偵測邏輯 ***
-                    # 1. 優先嘗試你指定的 fundingTimestamp
+                    # 多重欄位偵測 (相容各交易所)
                     next_time = info.get('fundingTimestamp')
-                    
-                    # 2. 如果沒有，嘗試 nextFundingTime (Bybit/Bitget 常見)
                     if next_time is None:
                         next_time = info.get('nextFundingTime')
-                        
-                    # 3. 如果還是沒有，嘗試 fundingTime (Binance 某些接口)
                     if next_time is None:
                         next_time = info.get('fundingTime')
 
@@ -101,7 +117,7 @@ def fetch_exchange_rates(exchange_id):
                             'exchange': exchange_id,
                             'symbol': symbol.replace(':USDT', '/USDT'),
                             'rate': float(rate),
-                            'next_time_formatted': format_time(next_time) # 格式化時間
+                            'next_time_formatted': format_time(next_time) # 這裡會自動轉 UTC+8
                         })
 
     except Exception as e:
@@ -110,7 +126,7 @@ def fetch_exchange_rates(exchange_id):
     return raw_data
 
 def get_aggregated_rates():
-    """獲取並聚合數據 (不負責排序，排序交給前端)"""
+    """獲取並聚合數據"""
     global cache_data
     current_time = time.time()
 
@@ -125,7 +141,7 @@ def get_aggregated_rates():
         for res in results:
             all_rates.extend(res)
 
-    # 聚合數據
+    # 聚合
     aggregated_data = {}
     for item in all_rates:
         symbol = item['symbol']
@@ -142,7 +158,7 @@ def get_aggregated_rates():
         
     final_list = list(aggregated_data.values())
     
-    # 預設排序 (可選，這裡預設先按幣安排序方便 API 查看)
+    # 簡單預設排序
     final_list.sort(key=lambda x: x.get('binance_rate') if x.get('binance_rate') is not None else float('inf'))
 
     if final_list:
