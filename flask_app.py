@@ -40,7 +40,7 @@ def fetch_exchange_rates(exchange_id):
                     config['secret'] = secret
                     
                 exchange = exchange_class(config)
-        app.run(debug=True)
+
         elif exchange_id == 'bybit':
             options = {'defaultType': 'swap'} # Bybit linear swap
         elif exchange_id == 'bitget':
