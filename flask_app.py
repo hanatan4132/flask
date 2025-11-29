@@ -12,7 +12,7 @@ cache_data = {
     "timestamp": 0,
     "rates": []
 }
-
+EXCHANGES = ['binance', 'bybit', 'bitget']
 CACHE_DURATION = 180  # 緩存 60 秒
 def format_time(timestamp):
     """將毫秒時間戳轉換為 H:M:S 格式 (不顯示日期)"""
