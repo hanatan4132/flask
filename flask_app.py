@@ -26,12 +26,11 @@ def format_time(timestamp):
 
 def fetch_exchange_rates(exchange_id):
     """抓取單一交易所數據"""
-    # 修正: 確保 raw_data 在 try 外部初始化
     raw_data = []
     exchange = None
     
     try:
-        # 定義通用設定 (解決 name error)
+        # 定義通用設定
         common_config = {
             'enableRateLimit': True,
             'timeout': 10000,
@@ -59,33 +58,50 @@ def fetch_exchange_rates(exchange_id):
             exchange.load_markets()
             rates = {}
             
-            # 獲取資費
+            # --- 獲取數據邏輯 ---
             try:
                 if exchange.has['fetchFundingRates']:
+                    # 這是最標準的方法，回傳所有幣種的資費結構
                     rates = exchange.fetch_funding_rates()
                 else:
                     raise Exception("Method not supported")
             except Exception:
-                # 備案: 從 Tickers 獲取
+                # 備案: 從 Tickers 獲取 (Bitget 常見情況)
+                # Tickers 通常也會包含 fundingRate 相關資訊
                 tickers = exchange.fetch_tickers()
                 for symbol, ticker in tickers.items():
                     if 'fundingRate' in ticker and ticker['fundingRate'] is not None:
-                         rates[symbol] = {'fundingRate': ticker['fundingRate'], 'nextFundingTime': None}
+                         # 嘗試從 ticker 結構中找時間，找不到就設為 None
+                         rates[symbol] = {
+                             'fundingRate': ticker['fundingRate'], 
+                             'fundingTimestamp': ticker.get('nextFundingTime') or ticker.get('fundingTimestamp')
+                         }
 
-            # 處理數據
+            # --- 處理數據與時間戳提取 ---
             for symbol, info in rates.items():
                 is_usdt = '/USDT' in symbol or ':USDT' in symbol
                 
                 if is_usdt:
                     rate = info.get('fundingRate')
-                    next_time = info.get('nextFundingTime')
                     
+                    # *** 核心修正：多重欄位偵測邏輯 ***
+                    # 1. 優先嘗試你指定的 fundingTimestamp
+                    next_time = info.get('fundingTimestamp')
+                    
+                    # 2. 如果沒有，嘗試 nextFundingTime (Bybit/Bitget 常見)
+                    if next_time is None:
+                        next_time = info.get('nextFundingTime')
+                        
+                    # 3. 如果還是沒有，嘗試 fundingTime (Binance 某些接口)
+                    if next_time is None:
+                        next_time = info.get('fundingTime')
+
                     if rate is not None:
                         raw_data.append({
                             'exchange': exchange_id,
                             'symbol': symbol.replace(':USDT', '/USDT'),
                             'rate': float(rate),
-                            'next_time_formatted': format_time(next_time)
+                            'next_time_formatted': format_time(next_time) # 格式化時間
                         })
 
     except Exception as e:
