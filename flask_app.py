@@ -13,7 +13,7 @@ cache_data = {
     "rates": []
 }
 
-CACHE_DURATION = 60  # 緩存 60 秒
+CACHE_DURATION = 180  # 緩存 60 秒
 
 def fetch_exchange_rates(exchange_id):
     data = []
