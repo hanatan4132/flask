@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>加密貨幣資費監控 (USDT)</title>
+    <!-- 引入 Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .rate-positive { color: #198754; font-weight: bold; } /* 綠色 */
+        .rate-negative { color: #dc3545; font-weight: bold; } /* 紅色 */
+        .loading { text-align: center; margin: 20px; font-size: 1.2rem; color: #666; }
+    </style>
+</head>
+<body class="bg-light">
+
+<div class="container py-5">
+    <h2 class="text-center mb-4">Binance / Bybit / Bitget USDT 合約資費表</h2>
+    
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <span>上次更新時間: <span id="update-time" class="fw-bold">--:--:--</span></span>
+        <button class="btn btn-primary btn-sm" onclick="fetchData()">立即刷新</button>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div id="loading-spinner" class="loading">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p>正在從交易所獲取數據，請稍候...</p>
+            </div>
+            
+            <div class="table-responsive" style="max-height: 80vh; overflow-y: auto;">
+                <table class="table table-striped table-hover mb-0" id="rates-table" style="display: none;">
+                    <thead class="table-dark sticky-top">
+                        <tr>
+                            <th>排名</th>
+                            <th>交易所</th>
+                            <th>幣種 (Symbol)</th>
+                            <th>資費率 (Funding Rate)</th>
+                            <th>下次結算時間</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <!-- 資料將由 JS 插入 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="text-center mt-3 text-muted small">
+        資料每分鐘自動更新一次 | 排序：由小到大
+    </div>
+</div>
+
+<!-- 引入 jQuery (方便 AJAX) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+    function fetchData() {
+        $('#loading-spinner').show();
+        // 如果表格已有數據，不隱藏表格，只顯示 Loading 提示
+        if ($('#table-body tr').length > 0) {
+            $('#rates-table').css('opacity', '0.5');
+        } else {
+            $('#rates-table').hide();
+        }
+
+        $.ajax({
+            url: '/api/rates',
+            method: 'GET',
+            success: function(response) {
+                let rows = '';
+                let data = response.data;
+                
+                data.forEach((item, index) => {
+                    // 判斷顏色：正數綠色，負數紅色
+                    let colorClass = item.rate >= 0 ? 'rate-positive' : 'rate-negative';
+                    
+                    rows += `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td><span class="badge bg-secondary">${item.exchange}</span></td>
+                            <td class="fw-bold">${item.symbol}</td>
+                            <td class="${colorClass}">${item.rate_pct}%</td>
+                            <td class="small text-muted">${item.time}</td>
+                        </tr>
+                    `;
+                });
+
+                $('#table-body').html(rows);
+                $('#update-time').text(response.updated_at);
+                
+                $('#loading-spinner').hide();
+                $('#rates-table').show().css('opacity', '1');
+            },
+            error: function() {
+                alert('獲取數據失敗，請稍後再試。');
+                $('#loading-spinner').hide();
+                $('#rates-table').css('opacity', '1');
+            }
+        });
+    }
+
+    // 頁面加載完成後立即執行一次
+    $(document).ready(function() {
+        fetchData();
+
+        // 設定定時器：每 60 秒 (60000 毫秒) 自動執行一次
+        setInterval(fetchData, 60000);
+    });
+</script>
+
+</body>
+</html>
