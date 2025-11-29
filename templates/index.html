@@ -3,19 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>加密貨幣資費監控 (USDT)</title>
+    <title>加密貨幣資費監控 (Coinglass 樣式)</title>
     <!-- 引入 Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         .rate-positive { color: #198754; font-weight: bold; } /* 綠色 */
         .rate-negative { color: #dc3545; font-weight: bold; } /* 紅色 */
+        .rate-cell { white-space: nowrap; } /* 避免數字換行 */
+        .time-cell { font-size: 0.8rem; color: #6c757d; }
+        .sticky-top-2 {
+            position: sticky;
+            top: 50px; /* 根據 table-dark 的高度調整 */
+            background-color: #fff;
+            z-index: 10;
+        }
         .loading { text-align: center; margin: 20px; font-size: 1.2rem; color: #666; }
     </style>
 </head>
 <body class="bg-light">
 
 <div class="container py-5">
-    <h2 class="text-center mb-4">Binance / Bybit / Bitget USDT 合約資費表</h2>
+    <h2 class="text-center mb-4">Binance / Bybit / Bitget USDT 合約資費表 (結算時間)</h2>
     
     <div class="d-flex justify-content-between align-items-center mb-3">
         <span>上次更新時間: <span id="update-time" class="fw-bold">--:--:--</span></span>
@@ -29,15 +37,23 @@
                 <p>正在從交易所獲取數據，請稍候...</p>
             </div>
             
-            <div class="table-responsive" style="max-height: 80vh; overflow-y: auto;">
+            <div class="table-responsive" style="max-height: 85vh; overflow-y: auto;">
                 <table class="table table-striped table-hover mb-0" id="rates-table" style="display: none;">
-                    <thead class="table-dark sticky-top">
-                        <tr>
-                            <th>排名</th>
-                            <th>交易所</th>
-                            <th>幣種 (Symbol)</th>
-                            <th>資費率 (Funding Rate)</th>
-                            <th>下次結算時間</th>
+                    
+                    <thead class="sticky-top">
+                        <!-- 第一層表頭：交易所名稱 -->
+                        <tr class="table-dark">
+                            <th rowspan="2">幣種 (Symbol)</th>
+                            {% for ex_id in exchanges %}
+                            <th colspan="2" class="text-center">{{ ex_id.capitalize() }}</th>
+                            {% endfor %}
+                        </tr>
+                        <!-- 第二層表頭：費率和時間 -->
+                        <tr class="table-secondary sticky-top-2">
+                            {% for ex_id in exchanges %}
+                            <th class="text-center">費率</th>
+                            <th class="text-center time-cell">下次結算時間</th>
+                            {% endfor %}
                         </tr>
                     </thead>
                     <tbody id="table-body">
@@ -48,7 +64,7 @@
         </div>
     </div>
     <div class="text-center mt-3 text-muted small">
-        資料每分鐘自動更新一次 | 排序：由小到大
+        資料每分鐘自動更新一次 | 排序：優先以 Binance 資費由小到大
     </div>
 </div>
 
@@ -56,10 +72,32 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 <script>
+    const EXCHANGES = ['binance', 'bybit', 'bitget']; // 確保與後端一致
+    const tableBody = $('#table-body');
+
+    function createExchangeCells(item, exchangeId) {
+        const rateKey = `${exchangeId}_rate`;
+        const timeKey = `${exchangeId}_time`;
+        const rate = item[rateKey];
+        const time = item[timeKey] || '-';
+
+        let rateDisplay = '-';
+        let colorClass = '';
+
+        if (rate !== null && rate !== undefined) {
+            rateDisplay = (rate * 100).toFixed(4) + '%';
+            colorClass = rate >= 0 ? 'rate-positive' : 'rate-negative';
+        }
+
+        return `
+            <td class="rate-cell text-center ${colorClass}">${rateDisplay}</td>
+            <td class="time-cell text-center">${time}</td>
+        `;
+    }
+
     function fetchData() {
         $('#loading-spinner').show();
-        // 如果表格已有數據，不隱藏表格，只顯示 Loading 提示
-        if ($('#table-body tr').length > 0) {
+        if (tableBody.find('tr').length > 0) {
             $('#rates-table').css('opacity', '0.5');
         } else {
             $('#rates-table').hide();
@@ -73,21 +111,17 @@
                 let data = response.data;
                 
                 data.forEach((item, index) => {
-                    // 判斷顏色：正數綠色，負數紅色
-                    let colorClass = item.rate >= 0 ? 'rate-positive' : 'rate-negative';
+                    let exchangeCells = EXCHANGES.map(ex => createExchangeCells(item, ex)).join('');
                     
                     rows += `
                         <tr>
-                            <td>${index + 1}</td>
-                            <td><span class="badge bg-secondary">${item.exchange}</span></td>
                             <td class="fw-bold">${item.symbol}</td>
-                            <td class="${colorClass}">${item.rate_pct}%</td>
-                            <td class="small text-muted">${item.time}</td>
+                            ${exchangeCells}
                         </tr>
                     `;
                 });
 
-                $('#table-body').html(rows);
+                tableBody.html(rows);
                 $('#update-time').text(response.updated_at);
                 
                 $('#loading-spinner').hide();
@@ -101,12 +135,9 @@
         });
     }
 
-    // 頁面加載完成後立即執行一次
     $(document).ready(function() {
         fetchData();
-
-        // 設定定時器：每 60 秒 (60000 毫秒) 自動執行一次
-        setInterval(fetchData, 60000);
+        setInterval(fetchData, 60000); // 每 60 秒自動更新
     });
 </script>
 
