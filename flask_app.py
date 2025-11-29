@@ -23,78 +23,60 @@ def format_time(timestamp):
         return dt_object.strftime('%H:%M:%S') 
     return '-'
 def fetch_exchange_rates(exchange_id):
-    data = []
-    # 初始化 exchange 為 None
-    exchange = None 
+    """抓取單一交易所的資費，並回傳原始數據列表"""
+    
+    # *** 修正: 將初始化移到 try 塊外面，確保它總是被定義 ***
+    raw_data = []
+    exchange = None
     
     try:
-        # 1. 先定義通用設定 (解決 NameError)
+        exchange_class = getattr(ccxt, exchange_id)
         common_config = {
             'enableRateLimit': True,
-            'timeout': 10000,  # 10秒超時
+            'timeout': 10000,
         }
-
-        # 動態獲取交易所類別
-        exchange_class = getattr(ccxt, exchange_id)
         
-        # 2. 針對不同交易所的特定設定
+        config = {**common_config}
+        
         if exchange_id == 'binance':
-            # 嘗試從環境變數讀取 API Key
             api_key = os.environ.get('BINANCE_API_KEY')
             secret = os.environ.get('BINANCE_SECRET')
-            
-            config = {
-                **common_config, 
-                'options': {'defaultType': 'future'}
-            }
-            
-            # 如果有 Key，就加入設定
+            config = {**common_config, 'options': {'defaultType': 'future'}}
             if api_key and secret:
                 config['apiKey'] = api_key
                 config['secret'] = secret
-            
             exchange = exchange_class(config)
 
         elif exchange_id == 'bybit':
-            # Bybit V5 API
             exchange = exchange_class({**common_config, 'options': {'defaultType': 'swap'}})
-            
         elif exchange_id == 'bitget':
-            # Bitget 混合合約
             exchange = exchange_class({**common_config, 'options': {'defaultType': 'swap'}})
 
-        # 3. 嘗試載入市場
         if exchange:
             exchange.load_markets()
-
-            # --- 獲取資費邏輯 ---
             rates = {}
             
+            # 優先嘗試 fetch_funding_rates
             try:
-                # 優先嘗試 fetch_funding_rates
                 if exchange.has['fetchFundingRates']:
                     rates = exchange.fetch_funding_rates()
                 else:
                     raise Exception("Method not supported")
             except Exception:
-                # 備案: 從 Tickers 獲取
-                # print(f"Fallback: Fetching tickers for {exchange_id}") # 減少 log 雜訊
+                # 備案: 從 Tickers 獲取 (可能會缺少 NextFundingTime)
                 tickers = exchange.fetch_tickers()
                 for symbol, ticker in tickers.items():
+                    # 只有 fundingRate 在 ticker 中才會被加入
                     if 'fundingRate' in ticker and ticker['fundingRate'] is not None:
-                        rates[symbol] = {
-                            'symbol': symbol,
-                            'fundingRate': ticker['fundingRate'],
-                            'timestamp': ticker['timestamp']
-                        }
+                         rates[symbol] = {'fundingRate': ticker['fundingRate'], 'nextFundingTime': None}
 
-            # 4. 處理數據
+
             for symbol, info in rates.items():
                 is_usdt = '/USDT' in symbol or ':USDT' in symbol
                 
                 if is_usdt:
                     rate = info.get('fundingRate')
-                    
+                    # *** 重要修改: 獲取下次結算時間 (Next Funding Time) ***
                     next_time = info.get('nextFundingTime')
                     
                     if rate is not None:
@@ -106,14 +88,12 @@ def fetch_exchange_rates(exchange_id):
                             'next_time_raw': next_time,
                             'next_time_formatted': format_time(next_time)
                         })
-    except Exception as e:
-        error_msg = str(e)
-        # 只印出簡短錯誤，避免 Log 爆炸
-        print(f"Error fetching {exchange_id}: {error_msg}")
 
-    # 注意：同步版 CCXT 不需要 finally exchange.close()
+    except Exception as e:
+        print(f"Error fetching {exchange_id}: {str(e)}")
     
-    return data
+    # 無論是否發生錯誤，都會回傳一個列表 (可能是空的)
+    return raw_data
 
 def get_sorted_rates():
     global cache_data
