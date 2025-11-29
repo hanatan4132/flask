@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 app = Flask(__name__)
 
 # --- 全局配置 ---
-CACHE_DURATION = 60
+CACHE_DURATION = 180
 EXCHANGES = ['binance', 'bybit', 'bitget']  # 定義交易所列表
 
 # 全局緩存
