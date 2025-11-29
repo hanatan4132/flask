@@ -23,7 +23,7 @@ def fetch_exchange_rates(exchange_id):
         exchange_class = getattr(ccxt, exchange_id)
         # 設定為合約模式 (Swap/Future)
         options = {}
-        if __name__ == '__main__':
+
         if exchange_id == 'binance':
                 # 嘗試讀取環境變數中的 API Key (如果有設定的話)
                 api_key = os.environ.get('BINANCE_API_KEY')
