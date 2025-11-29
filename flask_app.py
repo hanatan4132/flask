@@ -14,7 +14,14 @@ cache_data = {
 }
 
 CACHE_DURATION = 180  # 緩存 60 秒
-
+def format_time(timestamp):
+    """將毫秒時間戳轉換為 H:M:S 格式 (不顯示日期)"""
+    if timestamp:
+        # 轉換為秒
+        dt_object = datetime.fromtimestamp(timestamp / 1000)
+        # 只顯示小時:分鐘:秒
+        return dt_object.strftime('%H:%M:%S') 
+    return '-'
 def fetch_exchange_rates(exchange_id):
     data = []
     # 初始化 exchange 為 None
@@ -87,17 +94,18 @@ def fetch_exchange_rates(exchange_id):
                 
                 if is_usdt:
                     rate = info.get('fundingRate')
-                    timestamp = info.get('timestamp')
+                    
+                    next_time = info.get('nextFundingTime')
                     
                     if rate is not None:
-                        data.append({
-                            'exchange': exchange_id.capitalize(),
-                            'symbol': symbol,
+                        raw_data.append({
+                            'exchange': exchange_id,
+                            'symbol': symbol.replace(':USDT', '/USDT'), # 統一格式
                             'rate': float(rate),
                             'rate_pct': round(float(rate) * 100, 4),
-                            'time': datetime.fromtimestamp(timestamp / 1000).strftime('%Y-%m-%d %H:%M:%S') if timestamp else '-'
+                            'next_time_raw': next_time,
+                            'next_time_formatted': format_time(next_time)
                         })
-
     except Exception as e:
         error_msg = str(e)
         # 只印出簡短錯誤，避免 Log 爆炸
@@ -123,13 +131,41 @@ def get_sorted_rates():
         for res in results:
             all_rates.extend(res)
 
-    sorted_rates = sorted(all_rates, key=lambda x: x['rate'])
+    aggregated_data = {}
+    
+    # 1. 聚合: 將所有交易所的數據依 Symbol 歸類
+    for item in all_rates:
+        symbol = item['symbol']
+        exchange = item['exchange']
+        
+        if symbol not in aggregated_data:
+            # 初始化這個幣種的聚合結構
+            aggregated_data[symbol] = {'symbol': symbol}
+            for ex in EXCHANGES:
+                # 初始化每個交易所的數據為 None 或 '-'
+                aggregated_data[symbol][f'{ex}_rate'] = None
+                aggregated_data[symbol][f'{ex}_time'] = '-'
+        
+        # 填充數據
+        aggregated_data[symbol][f'{exchange}_rate'] = item['rate']
+        aggregated_data[symbol][f'{exchange}_time'] = item['next_time_formatted']
+        
+    # 2. 排序: 根據幣安 (或任一交易所) 的費率由小到大排序
+    final_list = list(aggregated_data.values())
+    
+    # 排序邏輯：優先以幣安費率排序，如果幣安沒有數據，就將該幣種排在後面
+    def sort_key(item):
+        rate = item.get('binance_rate')
+        return rate if rate is not None else float('inf')
 
-    if sorted_rates:
-        cache_data['rates'] = sorted_rates
+    sorted_list = sorted(final_list, key=sort_key)
+
+
+    if sorted_list:
+        cache_data['rates'] = sorted_list
         cache_data['timestamp'] = current_time
     
-    return sorted_rates, True
+    return sorted_list, True
 
 @app.route('/')
 def index():
