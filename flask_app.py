@@ -3,26 +3,34 @@ import ccxt
 import time
 import os
 import threading
+import logging
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
+
+# 設定日誌，讓我們在 Render 後台看得到錯誤
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
 # --- 全局配置 ---
-# 注意：這裡的 CACHE_DURATION 變成後台更新的間隔時間
-UPDATE_INTERVAL = 180 
+UPDATE_INTERVAL = 60 
 EXCHANGES = ['binance', 'bybit', 'bitget']
 
-# 全局數據容器 (這是我們的"現成菜餚")
+# 全局數據容器
 global_data_store = {
     "timestamp": 0,
     "rates": [],
-    "is_updating": False, # 標記是否正在更新中
-    "last_success": None  # 上次成功更新的時間文字
+    "status": "initializing", # 狀態: initializing, updated, error
+    "last_success": None,
+    "error_msg": None
 }
 
+# 用來控制後台執行緒的變數
+bg_thread = None
+thread_lock = threading.Lock()
+
 def format_time(timestamp):
-    """將毫秒時間戳轉換為 UTC+8 的 H:M:S"""
     if timestamp:
         try:
             dt_utc = datetime.utcfromtimestamp(float(timestamp) / 1000)
@@ -33,14 +41,11 @@ def format_time(timestamp):
     return '-'
 
 def fetch_exchange_rates(exchange_id):
-    """抓取單一交易所數據"""
     raw_data = []
-    exchange = None
-    
     try:
         common_config = {
             'enableRateLimit': True,
-            'timeout': 20000, # 放寬超時時間，因為後台跑沒人等
+            'timeout': 20000, 
         }
 
         exchange_class = getattr(ccxt, exchange_id)
@@ -54,7 +59,6 @@ def fetch_exchange_rates(exchange_id):
                 config['apiKey'] = api_key
                 config['secret'] = secret
             exchange = exchange_class(config)
-
         elif exchange_id == 'bybit':
             exchange = exchange_class({**common_config, 'options': {'defaultType': 'swap'}})
         elif exchange_id == 'bitget':
@@ -69,7 +73,8 @@ def fetch_exchange_rates(exchange_id):
                     rates = exchange.fetch_funding_rates()
                 else:
                     raise Exception("Method not supported")
-            except Exception:
+            except Exception as e:
+                # logger.warning(f"{exchange_id} 批量獲取失敗，嘗試 Tickers: {e}")
                 tickers = exchange.fetch_tickers()
                 for symbol, ticker in tickers.items():
                     if 'fundingRate' in ticker:
@@ -78,7 +83,6 @@ def fetch_exchange_rates(exchange_id):
                              'fundingTimestamp': ticker.get('nextFundingTime') or ticker.get('fundingTimestamp')
                          }
 
-            # Bitget 數學補位法
             bitget_calc_timestamp = None
             if exchange_id == 'bitget':
                 now_ms = time.time() * 1000
@@ -87,7 +91,6 @@ def fetch_exchange_rates(exchange_id):
 
             for symbol, info in rates.items():
                 is_usdt = '/USDT' in symbol or ':USDT' in symbol
-                
                 if is_usdt:
                     rate = info.get('fundingRate')
                     next_time = info.get('fundingTimestamp') or info.get('nextFundingTime') or info.get('fundingTime')
@@ -102,28 +105,25 @@ def fetch_exchange_rates(exchange_id):
                             'rate': float(rate),
                             'next_time_formatted': format_time(next_time)
                         })
-
     except Exception as e:
-        print(f"Error fetching {exchange_id}: {str(e)}")
+        logger.error(f"抓取 {exchange_id} 時發生錯誤: {e}")
     
     return raw_data
 
 def update_data_task():
-    """這是後台任務，會一直在迴圈中執行"""
-    print("啟動後台更新線程...")
+    """後台任務：持續抓取數據"""
+    logger.info("--- 後台更新線程已啟動 ---")
     while True:
         try:
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] 開始後台更新數據...")
-            global_data_store['is_updating'] = True
-            
+            logger.info("開始執行新一輪抓取...")
             all_rates = []
-            # 使用線程池並行抓取
+            
             with ThreadPoolExecutor(max_workers=3) as executor:
                 results = executor.map(fetch_exchange_rates, EXCHANGES)
                 for res in results:
                     all_rates.extend(res)
 
-            # 聚合數據
+            # 聚合邏輯
             aggregated_data = {}
             for item in all_rates:
                 symbol = item['symbol']
@@ -139,47 +139,53 @@ def update_data_task():
                 aggregated_data[symbol][f'{exchange}_time'] = item['next_time_formatted']
                 
             final_list = list(aggregated_data.values())
-            # 預設排序
             final_list.sort(key=lambda x: x.get('binance_rate') if x.get('binance_rate') is not None else float('inf'))
 
-            # 更新全局變數 (這是原子操作，對於讀取來說是安全的)
+            # 無論是否抓到空值，都視為一次嘗試
             if final_list:
                 global_data_store['rates'] = final_list
                 global_data_store['timestamp'] = time.time()
                 global_data_store['last_success'] = datetime.now().strftime('%H:%M:%S')
-                print(f"數據更新完成，共 {len(final_list)} 筆。")
+                global_data_store['status'] = 'updated'
+                logger.info(f"更新成功: 抓到 {len(final_list)} 筆資料")
+            else:
+                # 如果抓回來是空的，可能是全部都失敗了
+                global_data_store['status'] = 'empty'
+                global_data_store['error_msg'] = "所有交易所皆無數據"
+                logger.warning("更新完成但無數據")
             
         except Exception as e:
-            print(f"後台更新失敗: {e}")
-        finally:
-            global_data_store['is_updating'] = False
-            
-        # 休息 60 秒再做下一次
+            logger.error(f"後台任務崩潰: {e}")
+            global_data_store['status'] = 'error'
+            global_data_store['error_msg'] = str(e)
+        
         time.sleep(UPDATE_INTERVAL)
 
-# --- 啟動後台線程 ---
-# 使用 daemon=True，這樣當主程式結束時，線程也會跟著結束
-bg_thread = threading.Thread(target=update_data_task, daemon=True)
-bg_thread.start()
+def start_background_thread():
+    """安全地啟動後台線程"""
+    global bg_thread
+    with thread_lock:
+        if bg_thread is None or not bg_thread.is_alive():
+            bg_thread = threading.Thread(target=update_data_task, daemon=True)
+            bg_thread.start()
 
 @app.route('/')
 def index():
+    # 當有人訪問首頁時，檢查線程是否活著
+    start_background_thread()
     return render_template('index.html', exchanges=EXCHANGES)
 
 @app.route('/api/rates')
 def api_rates():
-    # 使用者請求時，直接回傳記憶體裡的數據，不做任何運算
-    # 這是真正的 "Instant" 響應
+    # 當 API 被呼叫時，也檢查線程是否活著 (雙保險)
+    start_background_thread()
     
     response_data = {
         'count': len(global_data_store['rates']),
         'data': global_data_store['rates'],
-        'updated_at': global_data_store['last_success'] or "初始載入中..."
+        'updated_at': global_data_store['last_success'] or "初始載入中...",
+        'status': global_data_store['status']
     }
-    
-    # 如果是剛啟動，數據還是空的，可能正在抓
-    if not global_data_store['rates']:
-        response_data['status'] = 'initializing'
     
     return jsonify(response_data)
 
