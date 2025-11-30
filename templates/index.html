@@ -71,11 +71,18 @@
         thead th:first-child {
             position: sticky;
             left: 0;
-            background-color: #fff; /* 預設白色背景，避免透明 */
-            z-index: 50; /* 比普通內容高 */
-            border-right: 2px solid #dee2e6; /* 加深右邊框，製造分隔感 */
-            font-weight: 600;
-            min-width: 90px; /* 固定最小寬度 */
+            background-color: #fff;
+            z-index: 50;
+            border-right: 2px solid #dee2e6; 
+            font-weight: 700;
+            
+            /* --- 這裡控制寬度 --- */
+            min-width: 65px;  /* 從 90px 改為 65px */
+            max-width: 75px;
+            padding-left: 2px;
+            padding-right: 2px;
+            font-size: 0.95em; /* 幣種字體大小 */
+            text-align: center;
         }
         
         /* 修正: 第一欄在表頭部分的背景色與層級 */
