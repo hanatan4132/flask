@@ -14,7 +14,8 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # --- 全局配置 ---
-UPDATE_INTERVAL = 60 
+UPDATE_INTERVAL = 150
+
 EXCHANGES = ['binance', 'bybit', 'bitget']
 
 # 全局數據容器
