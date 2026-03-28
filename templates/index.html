@@ -1,272 +1,489 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>資費監控 (Mobile)</title>
-    <!-- 引入 Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            font-size: 13px; 
-            background-color: #f8f9fa;
-        }
-        
-        .rate-positive { color: #198754; font-weight: 700; }
-        .rate-negative { color: #dc3545; font-weight: 700; }
-        
-        /* 表格容器 */
-        .table-container {
-            max-height: 85vh; 
-            overflow: auto;   
-            position: relative;
-            border: 1px solid #dee2e6;
-            border-radius: 6px;
-            background: #fff;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>全網資費監控</title>
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #161920;
+    --border: #252830;
+    --header-bg: #1a1d26;
+    --col-sticky: #161920;
+    --text: #e2e6ef;
+    --muted: #6b7280;
+    --accent: #3b82f6;
+    --positive: #22c55e;
+    --negative: #ef4444;
+    --header-h1: 36px;
+    --header-h2: 28px;
+    --row-h: 34px;
+    --sym-w: 62px;
+    --cell-w: 88px;
+  }
 
-        table {
-            border-collapse: separate; 
-            border-spacing: 0;
-            width: 100%;
-        }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        th, td {
-            padding: 8px 2px; /* 極限縮小左右內距 */
-            border-bottom: 1px solid #dee2e6;
-            border-right: 1px solid #f0f0f0;
-            vertical-align: middle;
-        }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 12px;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
 
-        /* === 凍結視窗邏輯 === */
+  /* ── Top bar ── */
+  #topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  #topbar-left { display: flex; align-items: center; gap: 10px; }
+  #topbar h1 { font-size: 14px; font-weight: 700; color: var(--text); letter-spacing: .5px; }
+  #status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #6b7280; flex-shrink: 0;
+    transition: background .4s;
+  }
+  #status-dot.live { background: var(--positive); box-shadow: 0 0 6px var(--positive); }
+  #status-dot.error { background: var(--negative); }
 
-        /* 1. 第一層表頭 */
-        thead tr.header-row-1 th {
-            position: sticky;
-            top: 0;
-            background-color: #212529;
-            color: white;
-            z-index: 100;
-            height: 38px;
-            font-size: 0.85rem;
-            padding: 4px;
-        }
+  #topbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  #update-time { color: var(--muted); font-size: 11px; }
+  #count-badge {
+    background: #1e2533; border: 1px solid var(--border);
+    border-radius: 4px; padding: 2px 7px;
+    font-size: 11px; color: var(--muted);
+  }
 
-        /* 2. 第二層表頭 */
-        thead tr.header-row-2 th {
-            position: sticky;
-            top: 38px; 
-            background-color: #e9ecef;
-            color: #495057;
-            z-index: 90;
-            height: 32px;
-            font-size: 0.75rem;
-            border-bottom: 2px solid #dee2e6;
-            padding: 2px;
-        }
+  /* filter row */
+  #filterbar {
+    display: flex; gap: 6px; align-items: center;
+    padding: 6px 12px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+  #search-input {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 5px; color: var(--text);
+    padding: 4px 8px; font-size: 12px; font-family: inherit;
+    width: 110px; outline: none;
+  }
+  #search-input:focus { border-color: var(--accent); }
+  .filter-btn {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 5px; color: var(--muted);
+    padding: 3px 9px; font-size: 11px; cursor: pointer;
+    font-family: inherit; transition: all .15s;
+  }
+  .filter-btn:hover, .filter-btn.active {
+    border-color: var(--accent); color: var(--accent);
+  }
+  #refresh-btn {
+    margin-left: auto;
+    background: var(--accent); border: none;
+    border-radius: 5px; color: #fff;
+    padding: 4px 12px; font-size: 12px; cursor: pointer;
+    font-family: inherit; font-weight: 600;
+    transition: opacity .15s;
+  }
+  #refresh-btn:hover { opacity: .8; }
+  #refresh-btn:disabled { opacity: .4; cursor: not-allowed; }
 
-        /* 3. 第一欄 (幣種) - 寬度控制核心 */
-        tbody td:first-child, 
-        thead th:first-child {
-            position: sticky;
-            left: 0;
-            background-color: #fff;
-            z-index: 50;
-            border-right: 2px solid #dee2e6; 
-            font-weight: 700;
-            
-            /* --- 寬度極限壓縮 --- */
-            width: 55px;      /* 強制寬度 */
-            min-width: 55px;  
-            max-width: 65px;
-            
-            padding-left: 2px;
-            padding-right: 2px;
-            font-size: 0.9em; 
-            text-align: center;
-            overflow: hidden; /* 防止文字溢出 */
-            text-overflow: ellipsis; /* 太長顯示... */
-        }
-        
-        thead tr.header-row-1 th:first-child {
-            z-index: 110; 
-            background-color: #212529; 
-        }
-        thead tr.header-row-2 th:first-child {
-            z-index: 110; 
-            background-color: #e9ecef; 
-            display: none; 
-        }
-        
-        .table-striped tbody tr:nth-of-type(odd) td:first-child {
-            background-color: #f8f9fa;
-        }
+  /* ── Table wrapper ── */
+  #table-wrap {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+  }
 
-        /* 內容樣式 */
-        .rate-cell { font-family: 'Roboto Mono', monospace; font-size: 1.05em; white-space: nowrap; letter-spacing: -0.5px;} 
-        .time-cell { font-size: 0.7rem; color: #888; white-space: nowrap; }
-        
-        .sortable-header { cursor: pointer; }
-        .sort-icon { font-size: 0.7em; margin-left: 2px; color: #aaa; }
-        .sort-active { color: #fff; }
+  /* ── Spinner overlay ── */
+  #spinner {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: var(--bg); z-index: 999;
+    gap: 12px; color: var(--muted); font-size: 13px;
+  }
+  .spin-ring {
+    width: 32px; height: 32px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
-        .loading { 
-            position: absolute; 
-            top: 50%; left: 50%; 
-            transform: translate(-50%, -50%);
-            text-align: center; 
-            color: #666;
-            width: 100%;
-        }
-    </style>
+  /* ── Main table ── */
+  table {
+    border-collapse: separate;
+    border-spacing: 0;
+    min-width: max-content;
+  }
+
+  th, td {
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  /* Sticky header row 1 */
+  thead tr:first-child th {
+    position: sticky;
+    top: 0;
+    background: var(--header-bg);
+    z-index: 60;
+    height: var(--header-h1);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 0 6px;
+    border-bottom: 1px solid var(--border);
+    letter-spacing: .3px;
+    color: #a0aec0;
+  }
+  /* Sticky header row 2 */
+  thead tr:last-child th {
+    position: sticky;
+    top: var(--header-h1);
+    background: var(--header-bg);
+    z-index: 60;
+    height: var(--header-h2);
+    font-size: 10px;
+    color: var(--muted);
+    padding: 0 4px;
+    border-bottom: 2px solid var(--border);
+  }
+
+  /* Sticky symbol column */
+  .col-sym {
+    position: sticky;
+    left: 0;
+    z-index: 55;
+    background: var(--col-sticky);
+    min-width: var(--sym-w);
+    max-width: var(--sym-w);
+    text-align: center;
+    border-right: 1px solid var(--border);
+    font-weight: 700;
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  thead tr:first-child .col-sym  { z-index: 80; background: var(--header-bg); }
+  thead tr:last-child .col-sym   { z-index: 80; background: var(--header-bg); display: none; }
+
+  /* Data cells */
+  td {
+    height: var(--row-h);
+    padding: 0 4px;
+    text-align: right;
+    vertical-align: middle;
+  }
+
+  /* Exchange group header */
+  .ex-header {
+    min-width: calc(var(--cell-w) * 2);
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+    padding: 0 4px;
+    border-right: 1px solid var(--border);
+    transition: color .15s;
+  }
+  .ex-header:hover { color: var(--text); }
+  .ex-header.sort-asc  { color: var(--accent); }
+  .ex-header.sort-desc { color: var(--accent); }
+  .sort-arrow { font-size: 9px; margin-left: 3px; }
+
+  .sub-header {
+    min-width: var(--cell-w);
+    text-align: right;
+    padding: 0 6px;
+  }
+  .sub-header.time-col { color: #4b5563; }
+
+  /* Body rows */
+  tbody tr { transition: background .1s; }
+  tbody tr:hover td { background: #1e222e !important; }
+  tbody tr:hover td.col-sym { background: #1e222e !important; }
+
+  /* Zebra */
+  tbody tr:nth-child(even) td { background: #13161e; }
+  tbody tr:nth-child(even) td.col-sym { background: #13161e; }
+
+  /* Rate colours */
+  .pos { color: var(--positive); }
+  .neg { color: var(--negative); }
+  .zero { color: var(--muted); }
+
+  .rate-val { font-size: 12px; font-weight: 600; }
+  .time-val { font-size: 10px; color: #4b5563; text-align: center; }
+
+  .group-border { border-right: 1px solid var(--border); }
+
+  /* exchange stats pill row */
+  #stats-row {
+    display: flex; flex-wrap: wrap; gap: 4px;
+    padding: 4px 12px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .stat-pill {
+    background: #1e2533; border: 1px solid var(--border);
+    border-radius: 3px; padding: 1px 6px;
+    font-size: 10px; color: var(--muted);
+  }
+  .stat-pill span { color: var(--text); }
+</style>
 </head>
 <body>
 
-<div class="container-fluid p-0" style="max-width: 100%;">
-    <div class="d-flex justify-content-between align-items-center p-2 bg-white border-bottom">
-        <div>
-            <h6 class="m-0 fw-bold">全網資費 (UTC+8)</h6>
-            <div class="small text-muted" style="font-size: 0.75rem;">更新: <span id="update-time">--:--:--</span></div>
-        </div>
-        <button class="btn btn-outline-primary btn-sm" style="font-size: 0.8rem; padding: 2px 10px;" onclick="fetchData()">刷新</button>
-    </div>
-
-    <div class="table-container border-0 rounded-0">
-        <div id="loading-spinner" class="loading">
-            <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
-            <p class="mt-2 small">載入中...</p>
-        </div>
-        
-        <table class="table table-striped table-hover mb-0" id="rates-table" style="display: none;">
-            <thead>
-                <tr class="header-row-1">
-                    <th rowspan="2" class="text-center align-middle">幣種</th>
-                    {% for ex_id in exchanges %}
-                    <th colspan="2" class="text-center sortable-header" onclick="handleSort('{{ ex_id }}')">
-                        {{ ex_id.capitalize() }}<span id="icon-{{ ex_id }}" class="sort-icon">▼</span>
-                    </th>
-                    {% endfor %}
-                </tr>
-                <tr class="header-row-2">
-                    {% for ex_id in exchanges %}
-                    <th class="text-center">費率</th>
-                    <th class="text-center">結算</th>
-                    {% endfor %}
-                </tr>
-            </thead>
-            <tbody id="table-body">
-                <!-- JS 填入 -->
-            </tbody>
-        </table>
-    </div>
+<!-- Top bar -->
+<div id="topbar">
+  <div id="topbar-left">
+    <div id="status-dot"></div>
+    <h1>全網資費監控</h1>
+  </div>
+  <div id="topbar-right">
+    <span id="count-badge">— 幣種</span>
+    <span id="update-time">--:--:--</span>
+  </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- Filter bar -->
+<div id="filterbar">
+  <input id="search-input" type="text" placeholder="搜幣種…" oninput="applyFilter()">
+  <button class="filter-btn active" onclick="setFilter('all',this)">全部</button>
+  <button class="filter-btn" onclick="setFilter('pos',this)">正資費</button>
+  <button class="filter-btn" onclick="setFilter('neg',this)">負資費</button>
+  <button class="filter-btn" onclick="setFilter('arb',this)">套利機會</button>
+  <button id="refresh-btn" onclick="fetchData()">刷新</button>
+</div>
+
+<!-- Exchange stats -->
+<div id="stats-row"></div>
+
+<!-- Table -->
+<div id="table-wrap">
+  <div id="spinner">
+    <div class="spin-ring"></div>
+    <span>資料載入中...</span>
+  </div>
+  <table id="rates-table" style="display:none;">
+    <thead>
+      <tr id="header-row-1">
+        <th class="col-sym" rowspan="2">幣種</th>
+        <!-- JS 填入交易所欄位 -->
+      </tr>
+      <tr id="header-row-2">
+        <!-- JS 填入 費率 / 結算 子欄 -->
+      </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+  </table>
+</div>
+
 <script>
-    const EXCHANGES = ['binance', 'bybit', 'bitget']; 
-    let globalData = [];
-    let currentSortExchange = 'bitget'; 
-    let sortDirection = 1; 
+// ─── 配置 (由 Flask 注入) ───────────────────────────────────────────────────
+const EXCHANGES = {{ exchanges | tojson }};
 
-    function handleSort(exchangeId) {
-        if (currentSortExchange === exchangeId) {
-            sortDirection *= -1;
-        } else {
-            currentSortExchange = exchangeId;
-            sortDirection = 1;
-        }
-        updateSortIcons();
-        sortAndRender();
+// ─── 狀態 ──────────────────────────────────────────────────────────────────
+let globalData   = [];
+let filteredData = [];
+let currentSort  = { ex: EXCHANGES[0], dir: 1 };  // dir: 1=asc, -1=desc
+let filterMode   = 'all';
+let searchQuery  = '';
+
+// ─── 建立表頭 ───────────────────────────────────────────────────────────────
+function buildHeaders() {
+  const row1 = document.getElementById('header-row-1');
+  const row2 = document.getElementById('header-row-2');
+
+  EXCHANGES.forEach((ex, i) => {
+    const isLast = i === EXCHANGES.length - 1;
+    // row 1: exchange name
+    const th1 = document.createElement('th');
+    th1.colSpan = 2;
+    th1.className = 'ex-header' + (isLast ? '' : ' group-border');
+    th1.id = `hdr-${ex}`;
+    th1.innerHTML = `${ex.toUpperCase()} <span class="sort-arrow" id="arr-${ex}">▼</span>`;
+    th1.onclick = () => handleSort(ex);
+    row1.appendChild(th1);
+
+    // row 2: 費率 / 結算
+    const th2a = document.createElement('th');
+    th2a.className = 'sub-header';
+    th2a.textContent = '費率';
+    const th2b = document.createElement('th');
+    th2b.className = 'sub-header time-col' + (isLast ? '' : ' group-border');
+    th2b.textContent = '結算';
+    row2.appendChild(th2a);
+    row2.appendChild(th2b);
+  });
+
+  refreshSortIcons();
+}
+
+// ─── 排序 ──────────────────────────────────────────────────────────────────
+function handleSort(ex) {
+  if (currentSort.ex === ex) {
+    currentSort.dir *= -1;
+  } else {
+    currentSort = { ex, dir: 1 };
+  }
+  refreshSortIcons();
+  applyFilter();
+}
+
+function refreshSortIcons() {
+  EXCHANGES.forEach(ex => {
+    const hdr = document.getElementById(`hdr-${ex}`);
+    const arr = document.getElementById(`arr-${ex}`);
+    if (!hdr || !arr) return;
+    hdr.classList.remove('sort-asc', 'sort-desc');
+    arr.textContent = '▼';
+    if (ex === currentSort.ex) {
+      hdr.classList.add(currentSort.dir === 1 ? 'sort-asc' : 'sort-desc');
+      arr.textContent = currentSort.dir === 1 ? '▲' : '▼';
     }
+  });
+}
 
-    function updateSortIcons() {
-        EXCHANGES.forEach(ex => {
-            const icon = $(`#icon-${ex}`);
-            icon.removeClass('sort-active');
-            icon.text('▼'); 
-            if (ex === currentSortExchange) {
-                icon.addClass('sort-active');
-                icon.text(sortDirection === 1 ? '▲' : '▼');
-            }
-        });
+// ─── 篩選 ──────────────────────────────────────────────────────────────────
+function setFilter(mode, btn) {
+  filterMode = mode;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilter();
+}
+
+function applyFilter() {
+  searchQuery = document.getElementById('search-input').value.trim().toUpperCase();
+  const key = `${currentSort.ex}_rate`;
+
+  filteredData = globalData.filter(row => {
+    // 搜尋
+    if (searchQuery && !row.symbol.toUpperCase().includes(searchQuery)) return false;
+    // 模式篩選
+    const r = row[key];
+    if (filterMode === 'pos') return r !== null && r > 0;
+    if (filterMode === 'neg') return r !== null && r < 0;
+    if (filterMode === 'arb') {
+      // 有至少兩個交易所資費差 > 0.05%
+      const rates = EXCHANGES.map(ex => row[`${ex}_rate`]).filter(v => v !== null);
+      if (rates.length < 2) return false;
+      const mx = Math.max(...rates), mn = Math.min(...rates);
+      return (mx - mn) >= 0.0005;
     }
+    return true;
+  });
 
-    function sortAndRender() {
-        const key = `${currentSortExchange}_rate`;
-        globalData.sort((a, b) => {
-            let valA = a[key];
-            let valB = b[key];
-            if (valA === null) return 1;
-            if (valB === null) return -1;
-            return (valA - valB) * sortDirection;
-        });
+  // 排序
+  filteredData.sort((a, b) => {
+    const va = a[key], vb = b[key];
+    if (va === null && vb === null) return 0;
+    if (va === null) return 1;
+    if (vb === null) return -1;
+    return (va - vb) * currentSort.dir;
+  });
 
-        let rows = '';
-        globalData.forEach(item => {
-            let exchangeCells = EXCHANGES.map(ex => {
-                const rateKey = `${ex}_rate`;
-                const timeKey = `${ex}_time`;
-                const rate = item[rateKey];
-                const time = item[timeKey] || '-';
+  renderTable();
+}
 
-                let rateDisplay = '-';
-                let colorClass = '';
+// ─── 渲染 ──────────────────────────────────────────────────────────────────
+function fmtRate(r) {
+  if (r === null || r === undefined) return { html: '<span style="color:#2d3348">—</span>', cls: '' };
+  const pct = (r * 100).toFixed(4);
+  const cls = r > 0.00001 ? 'pos' : r < -0.00001 ? 'neg' : 'zero';
+  const sign = r > 0 ? '+' : '';
+  return { html: `<span class="rate-val ${cls}">${sign}${pct}%</span>`, cls };
+}
 
-                if (rate !== null && rate !== undefined) {
-                    rateDisplay = (rate * 100).toFixed(4) + '%';
-                    colorClass = rate >= 0 ? 'rate-positive' : 'rate-negative';
-                }
-
-                return `
-                    <td class="rate-cell text-center ${colorClass}">${rateDisplay}</td>
-                    <td class="time-cell text-center">${time}</td>
-                `;
-            }).join('');
-
-            // === 核心修改：使用 split 強制分割 ===
-            // 原本的 replace 如果遇到格式對不上的 (例如大小寫) 可能失效
-            // split('/') 會把 "BTC/USDT" 切成 ["BTC", "USDT"]，我們取 [0]
-            let shortSymbol = item.symbol.split('/')[0];
-            
-            rows += `<tr><td class="text-center fw-bold text-dark">${shortSymbol}</td>${exchangeCells}</tr>`;
-        });
-        $('#table-body').html(rows);
-    }
-
-    function fetchData() {
-        $('#loading-spinner').show();
-        if ($('#table-body tr').length > 0) {
-            $('#rates-table').css('opacity', '0.5');
-        } else {
-            $('#rates-table').hide();
-        }
-
-        $.ajax({
-            url: '/api/rates',
-            method: 'GET',
-            success: function(response) {
-                globalData = response.data;
-                $('#update-time').text(response.updated_at);
-                updateSortIcons();
-                sortAndRender();
-                $('#loading-spinner').hide();
-                $('#rates-table').show().css('opacity', '1');
-            },
-            error: function() {
-                console.error("Fetch error");
-                $('#loading-spinner').hide();
-                $('#rates-table').css('opacity', '1');
-            }
-        });
-    }
-
-    $(document).ready(function() {
-        fetchData();
-        setInterval(fetchData, 60000); 
+function renderTable() {
+  let html = '';
+  filteredData.forEach(row => {
+    let cells = '';
+    EXCHANGES.forEach((ex, i) => {
+      const isLast = i === EXCHANGES.length - 1;
+      const { html: rateHtml } = fmtRate(row[`${ex}_rate`]);
+      const t = row[`${ex}_time`] || '-';
+      const borderClass = isLast ? '' : 'group-border';
+      cells += `<td class="text-right">${rateHtml}</td>`;
+      cells += `<td class="time-val ${borderClass}">${t}</td>`;
     });
-</script>
+    html += `<tr><td class="col-sym">${row.symbol}</td>${cells}</tr>`;
+  });
+  document.getElementById('table-body').innerHTML = html;
+}
 
+// ─── Stats 小徽章 ──────────────────────────────────────────────────────────
+function renderStats(stats) {
+  const el = document.getElementById('stats-row');
+  el.innerHTML = EXCHANGES.map(ex => {
+    const n = stats[ex] ?? 0;
+    const col = n > 0 ? '#22c55e' : '#4b5563';
+    return `<div class="stat-pill">${ex} <span style="color:${col}">${n}</span></div>`;
+  }).join('');
+}
+
+// ─── 抓資料 ────────────────────────────────────────────────────────────────
+let fetching = false;
+function fetchData() {
+  if (fetching) return;
+  fetching = true;
+  const btn = document.getElementById('refresh-btn');
+  btn.disabled = true;
+  btn.textContent = '抓取中…';
+
+  fetch('/api/rates')
+    .then(r => r.json())
+    .then(resp => {
+      globalData = resp.data || [];
+      document.getElementById('count-badge').textContent = `${globalData.length} 幣種`;
+      document.getElementById('update-time').textContent = resp.updated_at || '--:--:--';
+
+      const dot = document.getElementById('status-dot');
+      if (resp.status === 'updated') {
+        dot.className = 'live';
+      } else if (resp.status === 'error') {
+        dot.className = 'error';
+      } else {
+        dot.className = '';
+      }
+
+      if (resp.exchange_stats) renderStats(resp.exchange_stats);
+      applyFilter();
+
+      document.getElementById('spinner').style.display = 'none';
+      document.getElementById('rates-table').style.display = '';
+    })
+    .catch(err => {
+      console.error('fetch error', err);
+      document.getElementById('status-dot').className = 'error';
+    })
+    .finally(() => {
+      fetching = false;
+      btn.disabled = false;
+      btn.textContent = '刷新';
+    });
+}
+
+// ─── 初始化 ────────────────────────────────────────────────────────────────
+buildHeaders();
+fetchData();
+setInterval(fetchData, 60000);
+</script>
 </body>
 </html>
