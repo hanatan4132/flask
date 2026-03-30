@@ -19,10 +19,26 @@
     --header-h1: 36px;
     --header-h2: 28px;
     --row-h: 34px;
-    --sym-w: 62px;
-    --cell-w: 88px;
+    --sym-w: 50px;   /* 從 62px 縮減到 50px */
+    --cell-w: 82px;  /* 稍微縮減費率欄位，爭取更多空間 */
   }
 
+  /* 調整幣種欄位的文字對齊與間距 */
+  .col-sym {
+    position: sticky;
+    left: 0;
+    z-index: 55;
+    background: var(--col-sticky);
+    min-width: var(--sym-w);
+    max-width: var(--sym-w);
+    text-align: left;      /* 改為左對齊 */
+    padding-left: 6px !important; /* 靠左一點點 */
+    border-right: 1px solid var(--border);
+    font-weight: 700;
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
@@ -106,6 +122,25 @@
   .stat-pill { background: #1e2533; border: 1px solid var(--border); border-radius: 3px; padding: 1px 6px; font-size: 10px; color: var(--muted); }
   
   #spinner { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--bg); z-index: 999; }
+  @media (max-width: 600px) {
+    :root {
+      --sym-w: 46px;   /* 手機上更窄 */
+      --cell-w: 78px;  /* 費率欄位也縮窄 */
+    }
+    
+    .col-sym {
+      font-size: 10px; /* 幣名稍微縮小一點點 */
+      padding-left: 4px !important;
+    }
+
+    .rate-val {
+      font-size: 11px; /* 費率數字在手機上也縮小一點點 */
+    }
+
+    .time-val {
+      font-size: 9px;  /* 時間欄位更小 */
+    }
+  }
 </style>
 </head>
 <body>
