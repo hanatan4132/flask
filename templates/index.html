@@ -197,28 +197,45 @@ function applyFilter() {
   const key = `${currentSort.ex}_rate`;
 
   let result = globalData.filter(row => {
+    // 1. 搜尋篩選
     if (searchQuery && !row.symbol.includes(searchQuery)) return false;
     
+    // 2. 模式篩選
     if (filterMode === 'pos') return row[key] > 0;
     if (filterMode === 'neg') return row[key] < 0;
+    
+    // --- 關鍵修改：以幣安為基準的套利邏輯 ---
     if (filterMode === 'arb') {
-      const rates = EXCHANGES.map(ex => row[`${ex}_rate`]).filter(v => v !== null);
-      if (rates.length < 2) return false;
-      return (Math.max(...rates) - Math.min(...rates)) >= 0.0005;
+      const binanceRate = row['binance_rate'];
+      
+      // 如果該幣種在幣安沒有資費資料，直接跳過
+      if (binanceRate === null) return false;
+
+      // 檢查幣安與「任何一個」其他交易所是否存在 0.05% 以上的利差
+      return EXCHANGES.some(ex => {
+        if (ex === 'binance') return false; // 跳過自己跟自己比
+        const otherRate = row[`${ex}_rate`];
+        
+        if (otherRate === null) return false;
+        
+        // 計算絕對值差距是否 >= 0.0005 (0.05%)
+        return Math.abs(binanceRate - otherRate) >= 0.0005;
+      });
     }
+    
     return true;
   });
 
+  // 3. 排序邏輯
   result.sort((a, b) => {
     const va = a[key], vb = b[key];
-    if (va === null) return 1; if (vb === null) return -1;
+    if (va === null) return 1; 
+    if (vb === null) return -1;
     return (va - vb) * currentSort.dir;
   });
 
-  // 渲染優化：限制初次渲染數量，或是全量渲染但靠 CSS 優化
   renderTable(result);
 }
-
 // ─── 高效渲染 ───
 function renderTable(data) {
   const container = document.getElementById('table-body');
