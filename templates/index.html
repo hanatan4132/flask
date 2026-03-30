@@ -254,7 +254,7 @@ function applyFilter() {
         if (otherRate === null) return false;
         
         // 計算絕對值差距是否 >= 0.0005 (0.05%)
-        return Math.abs(binanceRate - otherRate) >= 0.0005;
+        return Math.abs(binanceRate - otherRate) >= 0.01;
       });
     }
     
