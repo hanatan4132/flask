@@ -36,7 +36,6 @@
     overflow: hidden;
   }
 
-  /* ── Top bar ── */
   #topbar {
     display: flex;
     align-items: center;
@@ -46,322 +45,145 @@
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
     gap: 8px;
-    flex-wrap: wrap;
   }
-  #topbar-left { display: flex; align-items: center; gap: 10px; }
-  #topbar h1 { font-size: 14px; font-weight: 700; color: var(--text); letter-spacing: .5px; }
-  #status-dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: #6b7280; flex-shrink: 0;
-    transition: background .4s;
-  }
+  #topbar h1 { font-size: 14px; font-weight: 700; color: var(--text); }
+  #status-dot { width: 7px; height: 7px; border-radius: 50%; background: #6b7280; flex-shrink: 0; }
   #status-dot.live { background: var(--positive); box-shadow: 0 0 6px var(--positive); }
   #status-dot.error { background: var(--negative); }
 
-  #topbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  #update-time { color: var(--muted); font-size: 11px; }
-  #count-badge {
-    background: #1e2533; border: 1px solid var(--border);
-    border-radius: 4px; padding: 2px 7px;
-    font-size: 11px; color: var(--muted);
-  }
-
-  /* filter row */
   #filterbar {
     display: flex; gap: 6px; align-items: center;
     padding: 6px 12px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
-    flex-wrap: wrap;
   }
   #search-input {
     background: var(--bg); border: 1px solid var(--border);
     border-radius: 5px; color: var(--text);
-    padding: 4px 8px; font-size: 12px; font-family: inherit;
-    width: 110px; outline: none;
+    padding: 4px 8px; font-size: 12px; width: 110px;
   }
-  #search-input:focus { border-color: var(--accent); }
   .filter-btn {
     background: var(--bg); border: 1px solid var(--border);
     border-radius: 5px; color: var(--muted);
     padding: 3px 9px; font-size: 11px; cursor: pointer;
-    font-family: inherit; transition: all .15s;
   }
-  .filter-btn:hover, .filter-btn.active {
-    border-color: var(--accent); color: var(--accent);
-  }
-  #refresh-btn {
-    margin-left: auto;
-    background: var(--accent); border: none;
-    border-radius: 5px; color: #fff;
-    padding: 4px 12px; font-size: 12px; cursor: pointer;
-    font-family: inherit; font-weight: 600;
-    transition: opacity .15s;
-  }
-  #refresh-btn:hover { opacity: .8; }
-  #refresh-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .filter-btn.active { border-color: var(--accent); color: var(--accent); }
 
-  /* ── Table wrapper ── */
-  #table-wrap {
-    flex: 1;
-    overflow: auto;
-    position: relative;
-  }
+  #table-wrap { flex: 1; overflow: auto; position: relative; }
 
-  /* ── Spinner overlay ── */
-  #spinner {
-    position: absolute; inset: 0;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    background: var(--bg); z-index: 999;
-    gap: 12px; color: var(--muted); font-size: 13px;
-  }
-  .spin-ring {
-    width: 32px; height: 32px;
-    border: 3px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin .7s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  table { border-collapse: separate; border-spacing: 0; min-width: max-content; }
+  th, td { border-bottom: 1px solid var(--border); white-space: nowrap; }
 
-  /* ── Main table ── */
-  table {
-    border-collapse: separate;
-    border-spacing: 0;
-    min-width: max-content;
-  }
-
-  th, td {
-    border-bottom: 1px solid var(--border);
-    white-space: nowrap;
-  }
-
-  /* Sticky header row 1 */
   thead tr:first-child th {
-    position: sticky;
-    top: 0;
-    background: var(--header-bg);
-    z-index: 60;
-    height: var(--header-h1);
-    font-size: 11px;
-    font-weight: 700;
-    padding: 0 6px;
-    border-bottom: 1px solid var(--border);
-    letter-spacing: .3px;
-    color: #a0aec0;
+    position: sticky; top: 0; background: var(--header-bg); z-index: 60;
+    height: var(--header-h1); font-size: 11px;
   }
-  /* Sticky header row 2 */
   thead tr:last-child th {
-    position: sticky;
-    top: var(--header-h1);
-    background: var(--header-bg);
-    z-index: 60;
-    height: var(--header-h2);
-    font-size: 10px;
-    color: var(--muted);
-    padding: 0 4px;
-    border-bottom: 2px solid var(--border);
+    position: sticky; top: var(--header-h1); background: var(--header-bg); z-index: 60;
+    height: var(--header-h2); font-size: 10px; border-bottom: 2px solid var(--border);
   }
 
-  /* Sticky symbol column */
   .col-sym {
-    position: sticky;
-    left: 0;
-    z-index: 55;
-    background: var(--col-sticky);
-    min-width: var(--sym-w);
-    max-width: var(--sym-w);
-    text-align: center;
-    border-right: 1px solid var(--border);
-    font-weight: 700;
-    font-size: 11px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  thead tr:first-child .col-sym  { z-index: 80; background: var(--header-bg); }
-  thead tr:last-child .col-sym   { z-index: 80; background: var(--header-bg); display: none; }
-
-  /* Data cells */
-  td {
-    height: var(--row-h);
-    padding: 0 4px;
-    text-align: right;
-    vertical-align: middle;
+    position: sticky; left: 0; z-index: 55;
+    background: var(--col-sticky); min-width: var(--sym-w); text-align: center;
+    border-right: 1px solid var(--border); font-weight: 700;
   }
 
-  /* Exchange group header */
-  .ex-header {
-    min-width: calc(var(--cell-w) * 2);
-    text-align: center;
-    cursor: pointer;
-    user-select: none;
-    padding: 0 4px;
-    border-right: 1px solid var(--border);
-    transition: color .15s;
+  /* 優化渲染效能的關鍵 CSS */
+  tbody tr {
+    content-visibility: auto;
+    contain-intrinsic-size: 0 34px;
   }
-  .ex-header:hover { color: var(--text); }
-  .ex-header.sort-asc  { color: var(--accent); }
-  .ex-header.sort-desc { color: var(--accent); }
-  .sort-arrow { font-size: 9px; margin-left: 3px; }
 
-  .sub-header {
-    min-width: var(--cell-w);
-    text-align: right;
-    padding: 0 6px;
-  }
-  .sub-header.time-col { color: #4b5563; }
-
-  /* Body rows */
-  tbody tr { transition: background .1s; }
-  tbody tr:hover td { background: #1e222e !important; }
-  tbody tr:hover td.col-sym { background: #1e222e !important; }
-
-  /* Zebra */
-  tbody tr:nth-child(even) td { background: #13161e; }
-  tbody tr:nth-child(even) td.col-sym { background: #13161e; }
-
-  /* Rate colours */
+  td { height: var(--row-h); padding: 0 4px; text-align: right; vertical-align: middle; }
+  .time-val { font-size: 10px; color: #4b5563; text-align: center; }
   .pos { color: var(--positive); }
   .neg { color: var(--negative); }
-  .zero { color: var(--muted); }
-
-  .rate-val { font-size: 12px; font-weight: 600; }
-  .time-val { font-size: 10px; color: #4b5563; text-align: center; }
-
   .group-border { border-right: 1px solid var(--border); }
 
-  /* exchange stats pill row */
-  #stats-row {
-    display: flex; flex-wrap: wrap; gap: 4px;
-    padding: 4px 12px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-  .stat-pill {
-    background: #1e2533; border: 1px solid var(--border);
-    border-radius: 3px; padding: 1px 6px;
-    font-size: 10px; color: var(--muted);
-  }
-  .stat-pill span { color: var(--text); }
+  #stats-row { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 12px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .stat-pill { background: #1e2533; border: 1px solid var(--border); border-radius: 3px; padding: 1px 6px; font-size: 10px; color: var(--muted); }
+  
+  #spinner { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--bg); z-index: 999; }
 </style>
 </head>
 <body>
 
-<!-- Top bar -->
 <div id="topbar">
-  <div id="topbar-left">
+  <div style="display:flex; align-items:center; gap:10px;">
     <div id="status-dot"></div>
     <h1>全網資費監控</h1>
   </div>
-  <div id="topbar-right">
-    <span id="count-badge">— 幣種</span>
-    <span id="update-time">--:--:--</span>
+  <div style="display:flex; align-items:center; gap:8px;">
+    <span id="count-badge" style="font-size:11px; color:#6b7280;">— 幣種</span>
+    <span id="update-time" style="font-size:11px; color:#6b7280;">--:--:--</span>
   </div>
 </div>
 
-<!-- Filter bar -->
 <div id="filterbar">
-  <input id="search-input" type="text" placeholder="搜幣種…" oninput="applyFilter()">
+  <!-- 注意這裡移除了 oninput -->
+  <input id="search-input" type="text" placeholder="搜幣種…">
   <button class="filter-btn active" onclick="setFilter('all',this)">全部</button>
   <button class="filter-btn" onclick="setFilter('pos',this)">正資費</button>
   <button class="filter-btn" onclick="setFilter('neg',this)">負資費</button>
   <button class="filter-btn" onclick="setFilter('arb',this)">套利機會</button>
-  <button id="refresh-btn" onclick="fetchData()">刷新</button>
+  <button id="refresh-btn" onclick="fetchData()" style="margin-left:auto; background:var(--accent); color:white; border:none; border-radius:5px; padding:4px 12px; cursor:pointer;">刷新</button>
 </div>
 
-<!-- Exchange stats -->
 <div id="stats-row"></div>
 
-<!-- Table -->
 <div id="table-wrap">
-  <div id="spinner">
-    <div class="spin-ring"></div>
-    <span>資料載入中...</span>
-  </div>
+  <div id="spinner">載入中...</div>
   <table id="rates-table" style="display:none;">
     <thead>
-      <tr id="header-row-1">
-        <th class="col-sym" rowspan="2">幣種</th>
-        <!-- JS 填入交易所欄位 -->
-      </tr>
-      <tr id="header-row-2">
-        <!-- JS 填入 費率 / 結算 子欄 -->
-      </tr>
+      <tr id="header-row-1"><th class="col-sym" rowspan="2">幣種</th></tr>
+      <tr id="header-row-2"></tr>
     </thead>
     <tbody id="table-body"></tbody>
   </table>
 </div>
 
 <script>
-// ─── 配置 (由 Flask 注入) ───────────────────────────────────────────────────
 const EXCHANGES = {{ exchanges | tojson }};
-
-// ─── 狀態 ──────────────────────────────────────────────────────────────────
 let globalData   = [];
-let filteredData = [];
-let currentSort  = { ex: EXCHANGES[0], dir: 1 };  // dir: 1=asc, -1=desc
+let currentSort  = { ex: EXCHANGES[0], dir: 1 };
 let filterMode   = 'all';
-let searchQuery  = '';
 
-// ─── 建立表頭 ───────────────────────────────────────────────────────────────
+// ─── 初始化表頭 ───
 function buildHeaders() {
   const row1 = document.getElementById('header-row-1');
   const row2 = document.getElementById('header-row-2');
-
   EXCHANGES.forEach((ex, i) => {
     const isLast = i === EXCHANGES.length - 1;
-    // row 1: exchange name
     const th1 = document.createElement('th');
-    th1.colSpan = 2;
-    th1.className = 'ex-header' + (isLast ? '' : ' group-border');
-    th1.id = `hdr-${ex}`;
-    th1.innerHTML = `${ex.toUpperCase()} <span class="sort-arrow" id="arr-${ex}">▼</span>`;
+    th1.colSpan = 2; th1.className = 'ex-header' + (isLast ? '' : ' group-border');
+    th1.innerHTML = `${ex.toUpperCase()} <span id="arr-${ex}">▼</span>`;
     th1.onclick = () => handleSort(ex);
     row1.appendChild(th1);
 
-    // row 2: 費率 / 結算
-    const th2a = document.createElement('th');
-    th2a.className = 'sub-header';
-    th2a.textContent = '費率';
-    const th2b = document.createElement('th');
-    th2b.className = 'sub-header time-col' + (isLast ? '' : ' group-border');
-    th2b.textContent = '結算';
-    row2.appendChild(th2a);
-    row2.appendChild(th2b);
+    const th2a = document.createElement('th'); th2a.className = 'sub-header'; th2a.textContent = '費率';
+    const th2b = document.createElement('th'); th2b.className = 'sub-header time-col' + (isLast ? '' : ' group-border'); th2b.textContent = '結算';
+    row2.appendChild(th2a); row2.appendChild(th2b);
   });
-
-  refreshSortIcons();
 }
 
-// ─── 排序 ──────────────────────────────────────────────────────────────────
+// ─── 排序 ───
 function handleSort(ex) {
-  if (currentSort.ex === ex) {
-    currentSort.dir *= -1;
-  } else {
-    currentSort = { ex, dir: 1 };
-  }
-  refreshSortIcons();
+  if (currentSort.ex === ex) currentSort.dir *= -1;
+  else currentSort = { ex, dir: 1 };
+  document.querySelectorAll('[id^="arr-"]').forEach(el => el.textContent = '▼');
+  document.getElementById(`arr-${ex}`).textContent = currentSort.dir === 1 ? '▲' : '▼';
   applyFilter();
 }
 
-function refreshSortIcons() {
-  EXCHANGES.forEach(ex => {
-    const hdr = document.getElementById(`hdr-${ex}`);
-    const arr = document.getElementById(`arr-${ex}`);
-    if (!hdr || !arr) return;
-    hdr.classList.remove('sort-asc', 'sort-desc');
-    arr.textContent = '▼';
-    if (ex === currentSort.ex) {
-      hdr.classList.add(currentSort.dir === 1 ? 'sort-asc' : 'sort-desc');
-      arr.textContent = currentSort.dir === 1 ? '▲' : '▼';
-    }
-  });
-}
+// ─── 搜尋防抖 (Debounce) ───
+let debounceTimer;
+document.getElementById('search-input').addEventListener('input', () => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(applyFilter, 300);
+});
 
-// ─── 篩選 ──────────────────────────────────────────────────────────────────
 function setFilter(mode, btn) {
   filterMode = mode;
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -369,118 +191,75 @@ function setFilter(mode, btn) {
   applyFilter();
 }
 
+// ─── 篩選與排序邏輯 ───
 function applyFilter() {
-  searchQuery = document.getElementById('search-input').value.trim().toUpperCase();
+  const searchQuery = document.getElementById('search-input').value.trim().toUpperCase();
   const key = `${currentSort.ex}_rate`;
 
-  filteredData = globalData.filter(row => {
-    // 搜尋
-    if (searchQuery && !row.symbol.toUpperCase().includes(searchQuery)) return false;
-    // 模式篩選
-    const r = row[key];
-    if (filterMode === 'pos') return r !== null && r > 0;
-    if (filterMode === 'neg') return r !== null && r < 0;
+  let result = globalData.filter(row => {
+    if (searchQuery && !row.symbol.includes(searchQuery)) return false;
+    
+    if (filterMode === 'pos') return row[key] > 0;
+    if (filterMode === 'neg') return row[key] < 0;
     if (filterMode === 'arb') {
-      // 有至少兩個交易所資費差 > 0.05%
       const rates = EXCHANGES.map(ex => row[`${ex}_rate`]).filter(v => v !== null);
       if (rates.length < 2) return false;
-      const mx = Math.max(...rates), mn = Math.min(...rates);
-      return (mx - mn) >= 0.0005;
+      return (Math.max(...rates) - Math.min(...rates)) >= 0.0005;
     }
     return true;
   });
 
-  // 排序
-  filteredData.sort((a, b) => {
+  result.sort((a, b) => {
     const va = a[key], vb = b[key];
-    if (va === null && vb === null) return 0;
-    if (va === null) return 1;
-    if (vb === null) return -1;
+    if (va === null) return 1; if (vb === null) return -1;
     return (va - vb) * currentSort.dir;
   });
 
-  renderTable();
+  // 渲染優化：限制初次渲染數量，或是全量渲染但靠 CSS 優化
+  renderTable(result);
 }
 
-// ─── 渲染 ──────────────────────────────────────────────────────────────────
-function fmtRate(r) {
-  if (r === null || r === undefined) return { html: '<span style="color:#2d3348">—</span>', cls: '' };
-  const pct = (r * 100).toFixed(4);
-  const cls = r > 0.00001 ? 'pos' : r < -0.00001 ? 'neg' : 'zero';
-  const sign = r > 0 ? '+' : '';
-  return { html: `<span class="rate-val ${cls}">${sign}${pct}%</span>`, cls };
-}
-
-function renderTable() {
-  let html = '';
-  filteredData.forEach(row => {
-    let cells = '';
+// ─── 高效渲染 ───
+function renderTable(data) {
+  const container = document.getElementById('table-body');
+  const rowsHtml = [];
+  
+  // 如果資料太多，初次只顯示 150 筆，其餘延遲（或靠 content-visibility）
+  data.forEach(row => {
+    let cells = `<td class="col-sym">${row.symbol}</td>`;
     EXCHANGES.forEach((ex, i) => {
-      const isLast = i === EXCHANGES.length - 1;
-      const { html: rateHtml } = fmtRate(row[`${ex}_rate`]);
-      const t = row[`${ex}_time`] || '-';
-      const borderClass = isLast ? '' : 'group-border';
-      cells += `<td class="text-right">${rateHtml}</td>`;
-      cells += `<td class="time-val ${borderClass}">${t}</td>`;
+      const val = row[`${ex}_rate`];
+      const rateHtml = val === null ? '<span style="color:#2d3348">—</span>' : 
+        `<span class="rate-val ${val>0?'pos':val<0?'neg':''}"> ${(val*100).toFixed(4)}%</span>`;
+      const timeStr = row[`${ex}_time`] || '-';
+      const border = (i === EXCHANGES.length - 1) ? '' : 'group-border';
+      cells += `<td>${rateHtml}</td><td class="time-val ${border}">${timeStr}</td>`;
     });
-    html += `<tr><td class="col-sym">${row.symbol}</td>${cells}</tr>`;
+    rowsHtml.push(`<tr>${cells}</tr>`);
   });
-  document.getElementById('table-body').innerHTML = html;
+
+  requestAnimationFrame(() => {
+    container.innerHTML = rowsHtml.join('');
+    document.getElementById('rates-table').style.display = '';
+    document.getElementById('spinner').style.display = 'none';
+  });
 }
 
-// ─── Stats 小徽章 ──────────────────────────────────────────────────────────
-function renderStats(stats) {
-  const el = document.getElementById('stats-row');
-  el.innerHTML = EXCHANGES.map(ex => {
-    const n = stats[ex] ?? 0;
-    const col = n > 0 ? '#22c55e' : '#4b5563';
-    return `<div class="stat-pill">${ex} <span style="color:${col}">${n}</span></div>`;
-  }).join('');
-}
-
-// ─── 抓資料 ────────────────────────────────────────────────────────────────
-let fetching = false;
 function fetchData() {
-  if (fetching) return;
-  fetching = true;
   const btn = document.getElementById('refresh-btn');
   btn.disabled = true;
-  btn.textContent = '抓取中…';
-
   fetch('/api/rates')
     .then(r => r.json())
     .then(resp => {
       globalData = resp.data || [];
       document.getElementById('count-badge').textContent = `${globalData.length} 幣種`;
-      document.getElementById('update-time').textContent = resp.updated_at || '--:--:--';
-
-      const dot = document.getElementById('status-dot');
-      if (resp.status === 'updated') {
-        dot.className = 'live';
-      } else if (resp.status === 'error') {
-        dot.className = 'error';
-      } else {
-        dot.className = '';
-      }
-
-      if (resp.exchange_stats) renderStats(resp.exchange_stats);
+      document.getElementById('update-time').textContent = resp.updated_at;
+      document.getElementById('status-dot').className = resp.status === 'updated' ? 'live' : 'error';
       applyFilter();
-
-      document.getElementById('spinner').style.display = 'none';
-      document.getElementById('rates-table').style.display = '';
     })
-    .catch(err => {
-      console.error('fetch error', err);
-      document.getElementById('status-dot').className = 'error';
-    })
-    .finally(() => {
-      fetching = false;
-      btn.disabled = false;
-      btn.textContent = '刷新';
-    });
+    .finally(() => btn.disabled = false);
 }
 
-// ─── 初始化 ────────────────────────────────────────────────────────────────
 buildHeaders();
 fetchData();
 setInterval(fetchData, 60000);
