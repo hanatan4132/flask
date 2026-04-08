@@ -10,7 +10,7 @@ import os
 import threading
 import logging
 from fetchers import EXCHANGE_IDS   # 只為了讓 index.html 知道欄位順序
-
+import zlib
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -52,19 +52,27 @@ def upload_data():
     if request.headers.get('X-Api-Key', '') != API_SECRET:
         return jsonify({'error': 'unauthorized'}), 401
 
-    payload = request.get_json(force=True, silent=True)
-    if not payload:
-        return jsonify({'error': 'bad json'}), 400
+    try:
+        # 判斷是否為壓縮資料
+        if request.headers.get('Content-Encoding') == 'gzip':
+            raw_data = zlib.decompress(request.get_data())
+            payload = json.loads(raw_data)
+        else:
+            payload = request.get_json(force=True, silent=True)
 
-    with store_lock:
-        data_store['rates']          = payload.get('data', [])
-        data_store['updated_at']     = payload.get('updated_at', '?')
-        data_store['exchange_stats'] = payload.get('exchange_stats', {})
-        data_store['status']         = 'updated'
+        if not payload:
+            return jsonify({'error': 'bad content'}), 400
 
-    count = len(data_store['rates'])
-    logger.info(f"收到推送: {count} 筆, updated_at={data_store['updated_at']}")
-    return jsonify({'ok': True, 'count': count})
+        with store_lock:
+            data_store['rates']          = payload.get('data', [])
+            data_store['updated_at']     = payload.get('updated_at', '?')
+            data_store['exchange_stats'] = payload.get('exchange_stats', {})
+            data_store['status']         = 'updated'
+
+        return jsonify({'ok': True, 'count': len(data_store['rates'])})
+    except Exception as e:
+        logger.error(f"處理上傳資料失敗: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':
