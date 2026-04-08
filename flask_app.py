@@ -1,10 +1,4 @@
-"""
-app.py  ── 跑在 Render
-只負責：
-  1. 接收 worker.py 推送的資料 (POST /api/upload_data)
-  2. 提供前端頁面與 API (GET /  GET /api/rates)
-"""
-
+import json
 from flask import Flask, render_template, jsonify, request
 import os
 import threading
