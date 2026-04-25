@@ -269,11 +269,19 @@ function applyFilter() {
     return (va - vb) * currentSort.dir;
   });
 
-  renderTable(result);
+  const displayData = result.slice(0, 150); 
+  
+  // 更新徽章顯示：現在有 800 幣種，但只顯示前 150 名
+  document.getElementById('count-badge').textContent = `${result.length} 幣種 (顯示前150)`;
+
+  renderTable(displayData); 
 }
 // ─── 高效渲染 ───
 function renderTable(data) {
   const container = document.getElementById('table-body');
+  while (container.firstChild) {
+    container.removeChild(container.firstChild);
+  }
   const rowsHtml = [];
   
   // 如果資料太多，初次只顯示 150 筆，其餘延遲（或靠 content-visibility）
@@ -303,6 +311,7 @@ function fetchData() {
   fetch('/api/rates')
     .then(r => r.json())
     .then(resp => {
+      globalData = null; 
       globalData = resp.data || [];
       document.getElementById('count-badge').textContent = `${globalData.length} 幣種`;
       document.getElementById('update-time').textContent = resp.updated_at;
